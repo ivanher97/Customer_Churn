@@ -1,0 +1,24 @@
+# --- Big Data & Spark Garbage ---
+metastore_db/
+spark-warehouse/
+derby.log
+
+# --- Python Garbage ---
+__pycache__/
+*.py[cod]
+.env
+.venv
+env/
+venv/
+
+# --- Jupyter Garbage ---
+.ipynb_checkpoints/
+
+# --- DATOS 
+data/
+*.csv
+*.parquet
+*.json
+
+# --- MODELOS
+models/
