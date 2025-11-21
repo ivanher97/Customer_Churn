@@ -1,85 +1,45 @@
 # Telco Customer Churn Prediction Pipeline
 
-## Descripción del Proyecto
-Este proyecto implementa un **pipeline de Machine Learning end-to-end escalable** utilizando **Apache Spark (PySpark)**. El objetivo es predecir la fuga de clientes (Churn) en una empresa de telecomunicaciones.
+![Spark](https://img.shields.io/badge/Apache%20Spark-3.5-orange?style=flat-square&logo=apachespark)
+![Python](https://img.shields.io/badge/Python-3.9-blue?style=flat-square&logo=python)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)
 
-El sistema ingesta datos crudos, los procesa y almacena en formato optimizado (Parquet), realiza ingeniería de características distribuida y entrena modelos clasificadores para identificar usuarios en riesgo, permitiendo al negocio tomar acciones preventivas de retención.
+## Project Overview
+This project implements an **End-to-End Big Data Machine Learning Pipeline** to predict customer churn for a Telecommunications company. 
+Unlike standard notebook scripts, this project focuses on **Scalability, Reproducibility, and Engineering Best Practices** using Apache Spark.
 
----
+The goal is to identify customers at high risk of leaving (Churn) to enable proactive retention campaigns.
 
-## 1. Problema de Negocio
-**El Desafío:**
-La adquisición de nuevos clientes es entre 5 y 25 veces más costosa que la retención de los existentes. La empresa necesita identificar proactivamente qué clientes tienen una alta probabilidad de cancelar sus servicios el próximo mes.
+## Architecture & Workflow
+The solution is designed as a modular pipeline:
 
-**La Solución:**
-Un modelo predictivo capaz de clasificar clientes con riesgo de fuga (`Churn = Yes`).
-* **KPI Principal:** Maximizar el **Recall** (Sensibilidad). Preferimos falsos positivos (ofrecer descuentos a quien no se iba a ir) que falsos negativos (perder un cliente sin haber intentado retenerlo).
+1.  **Data Ingestion & EDA:** Analysis of raw Telco data (7k+ rows), handling schema enforcement and statistical summaries.
+2.  **Feature Engineering:** * `StringIndexer` & `OneHotEncoder` for categorical variables.
+    * `VectorAssembler` for feature vectorization.
+    * Handling of class imbalance via Threshold Tuning.
+3.  **Modeling Strategy:**
+    * **Baseline:** Logistic Regression (AUC ~0.86).
+    * **Champion:** Random Forest Classifier optimized via **Grid Search & Cross-Validation (3-Folds)**.
+4.  **Pipeline Persistence:** The full transformation and inference pipeline is serialized for production serving.
 
----
+## Key Results & Business Insights
+After training and validating multiple models, the system achieved:
 
-## 2. Arquitectura y Stack Tecnológico
+| Metric | Value | Notes |
+| :--- | :--- | :--- |
+| **AUC-ROC** | **0.85** | Robust separation between churners and non-churners. |
+| **Recall** | **~0.81** | Optimized threshold (0.3) to prioritize capturing potential churners (minimizing False Negatives). |
 
-El proyecto sigue una arquitectura de procesamiento de datos moderna basada en el ecosistema Hadoop/Spark.
+### The "Smoking Gun"
+The Random Forest Feature Importance analysis revealed that **Contract Type** is the single most critical factor:
+* Customers with **Month-to-month contracts** are significantly more likely to churn (Importance: ~18.5%).
+* *Business Recommendation:* Incentivize users to switch to 1-year or 2-year contracts to reduce churn rate immediately.
 
-### Tech Stack
-* **Motor de Procesamiento:** Apache Spark 3.5.0 (PySpark).
-* **Lenguaje:** Python 3.11.
-* **Almacenamiento:** Parquet (Columnar storage para alto rendimiento).
-* **ML Library:** Spark MLlib (Pipelines, CrossValidator).
-* **Control de Versiones:** Git.
-
-### Pipeline de Datos
-
-1.  **Ingesta (ETL):**
-    * Descarga de datos desde fuente remota (GitHub/IBM).
-    * Limpieza de tipos de datos (Casting de `TotalCharges` a Double).
-    * Imputación y eliminación de nulos.
-    * Generación de variable objetivo binaria (`label`).
-    * **Persistencia:** Guardado en capa *Silver* como archivos **Parquet**.
-
-2.  **Feature Engineering:**
-    * Tratamiento de variables categóricas: `StringIndexer` + `OneHotEncoder`.
-    * Vectorización de features: `VectorAssembler`.
-    * División de datos (Train/Test).
-
-3.  **Modelado y Tuning:**
-    * Comparación de modelos: **Logistic Regression** vs. **Random Forest**.
-    * Optimización de hiperparámetros con `CrossValidator` y `ParamGridBuilder`.
-    * Ajuste de umbral de decisión (Threshold tuning) para priorizar el Recall.
-
----
-
-## 3. Resultados e Insights
-
-### Métricas de Evaluación (Test Set)
-Se priorizó el modelo **Logistic Regression** con ajuste de umbral (0.3) por su capacidad de capturar el 81% de los fugados.
-
-| Modelo | Accuracy | Precision | Recall | AUC | Comentarios |
-| :--- | :---: | :---: | :---: | :---: | :--- |
-| **Logistic Regression (Base)** | 81.4% | 68.1% | 56.8% | **0.86** | Alta precisión, bajo recall. |
-| **Logistic Regression (Tuned)**| 77.3% | 55.0% | **81.2%** | 0.86 | **Modelo seleccionado.** Maximiza detección de fuga. |
-| **Random Forest (CV)** | 84.9% | - | - | 0.85 | Robusto, utilizado para Feature Importance. |
-
-### Top Factores de Fuga (Feature Importance)
-Según el modelo Random Forest, las variables que más influyen en la decisión del cliente de abandonar son:
-
-1.  **Tipo de Contrato (Mes a mes):** Los clientes sin permanencia anual son los más propensos a irse.
-2.  **Seguridad Online (No):** La falta de servicios añadidos facilita la fuga.
-3.  **Antigüedad (Tenure):** A mayor antigüedad, menor probabilidad de fuga.
-4.  **Cargos Totales:** Facturas acumuladas altas son un factor de riesgo.
-5.  **Internet Fibra Óptica:** Curiosamente, los usuarios de fibra tienen una tasa de churn más alta (posiblemente por precio o problemas técnicos).
-
----
-
-## Estructura del Proyecto
-
+## Project Structure
 ```bash
-├── data/
-│   ├── processed/       # Datos limpios en formato Parquet
-│   └── Telco-Customer-Churn.csv
-├── models/              # Modelos serializados para inferencia
-├── 01_hello_spark.ipynb # ETL: Ingesta, limpieza y guardado en Parquet
-├── 02_feature_engineering.ipynb # Entrenamiendo Regresión Logística & Evaluación
-├── 03_random_forest_pipeline.ipynb # Pipeline complejo con Random Forest & GridSearch
-├── test_arquitectura.ipynb # Validación de entorno Spark
-└── .gitignore
+├── 01_hello_spark.ipynb            # Environment setup & Data Ingestion
+├── 02_feature_engineering.ipynb    # Baseline Model (Logistic Regression)
+├── 03_random_forest_pipeline.ipynb # Advanced Pipeline (RF + CrossValidation)
+├── data/                           # Raw and Processed Parquet data (GitIgnored)
+├── models/                         # Serialized Spark Pipelines (GitIgnored)
+└── docker-compose.yml              # Infrastructure as Code
